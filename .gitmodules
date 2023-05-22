@@ -1,0 +1,6 @@
+[submodule "react-dotnet-demo-reactapp"]
+	path = react-dotnet-demo-reactapp
+	url = https://github.com/WebDev8919/react-dotnet-demo-reactapp.git
+[submodule "reactapp"]
+	path = reactapp
+	url = https://github.com/WebDev8919/react-dotnet-demo-reactapp.git
