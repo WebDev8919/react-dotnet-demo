@@ -1,55 +1,32 @@
 ﻿namespace webapi.Helpers;
 
-using System.Data;
-using Dapper;
-using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using webapi.Entities;
 
-public class DataContext
+public class DataContext : DbContext
 {
-    private readonly DbSettings _dbSettings;
-    public DataContext(IOptions<DbSettings> dbSettings)
+    protected readonly IConfiguration Configuration;
+
+    public DataContext(IConfiguration configuration)
     {
-        _dbSettings = dbSettings.Value;
-    }
-    public IDbConnection CreateConnection()
-    {
-        var connectionString = $"Server={_dbSettings.Server}; Database={_dbSettings.Database}; User Id={_dbSettings.UserId}; Password={_dbSettings.Password};";
-        return new SqlConnection(connectionString);
+        Configuration = configuration;
     }
 
-    private async Task Init()
+    protected override void OnConfiguring(DbContextOptionsBuilder options)
     {
-        await _initDatabase();
-        await _initTables();
+        // connect to mysql with connection string from app settings
+        var connectionString = Configuration.GetConnectionString("ApiDatabase");
+        var serverVersion = new MySqlServerVersion(new Version(5, 0, 25));
+        var loggerFactory = LoggerFactory.Create(builder => {
+            builder.AddConsole();
+        });
+        options
+            .UseMySql(connectionString, serverVersion)
+            .UseLoggerFactory(loggerFactory)
+            .EnableSensitiveDataLogging()
+            .UseSnakeCaseNamingConvention();
     }
-    private async Task _initDatabase()
-    {
-        var connectionString = $"Server={_dbSettings.Server}; Database=master; User Id={_dbSettings.UserId}; Password={_dbSettings.Password};";
-        using var connection = new SqlConnection(connectionString);
-        var sql = $"IF NOT EXISTS (SELECT * FROM sys.databaes WHERE name = '{_dbSettings.Database}') CREATE DATABASE [{_dbSettings.Database}];";
-        await connection.ExecuteAsync(sql) ;
-    }
-    private async Task _initTables()
-    {
-        using var connection = CreateConnection() ;
-        await _initUsers();
 
-        async Task _initUsers()
-        {
-            var sql = """
-                IF OBJECT_ID('Users', 'U') IS NULL
-                CREATE TABLE Users (
-                    Id INT NOT NULL PRIMARY KEY IDENTITY,
-                    Title NVARCHAR(MAX),
-                    FirstName NVARCHAR(MAX),
-                    LastName NVARCHAR(MAX),
-                    Email NVARCHAR(MAX),
-                    Role INT,
-                    PasswordHash NVARCHAR(MAX)
-                );
-                """;
-            await connection.ExecuteAsync(sql) ;
-        }
-    }
+    public DbSet<User> Users { get; set; }
 }
